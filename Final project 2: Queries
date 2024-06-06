@@ -1,0 +1,34 @@
+-- 1. Calculate the loan total for each year.
+-- 2. Identify the county with the most expensive loan total.
+-- 3. Identify the zip code(s) associated with expensive houses.
+-- 4. Calculate each property type's maximum, minimum, and average property values.
+
+1. Calculate the loan total for each year.
+select cast(sum(orig_loan_amount) as decimal (19,2)) as loan_total, purchase_year 
+from sonyma_target_tz
+group by purchase_year
+order by 1 desc
+
+2. Identify the county with the most expensive loan total.
+
+select top 10 cast(sum(orig_loan_amount) as decimal(19,2)) as loan_total, county
+from sonyma_target_tz
+group by county
+order by 1 desc
+
+-- 3. Identify the zip code(s) associated with expensive houses.
+
+select top 10 cast((orig_loan_amount/orig_loan_to_value*100) as decimal(19,2)) as property_value, fips_code, county
+from sonyma_target_tz
+order by 1 desc
+
+4. Calculate each property type's maximum, minimum, and average property values.
+
+select cast(max(orig_loan_amount/orig_loan_to_value*100) as decimal(19,2)) as max_value,
+cast(min(orig_loan_amount/orig_loan_to_value*100) as decimal(19,2)) as min_value,
+cast(avg(orig_loan_amount/orig_loan_to_value*100) as decimal(19,2)) as avg_value,
+property_type
+from sonyma_target_Tz
+group by property_type
+order by 1 desc
+
