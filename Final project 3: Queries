@@ -1,0 +1,149 @@
+--- OVERVIEW: The project aimed to analyze COVID-19 patient data comprehensively, focusing on gender distribution, age group analysis, pregnant patients, and 
+specific medical conditions. It began with data cleaning and mapping in Excel, followed by SQL queries to extract insights. 
+The goal was to generate reports, flat files, and interactive Tableau dashboards for informed decision-making regarding COVID-19 patient management 
+and healthcare strategies. ----
+
+1. Gender Distribution:
+	• Count of Patients by Gender: Categorize patients by gender (male, female, other).
+Columns: Gender, Patient_count
+*/
+
+
+SELECT
+    CASE 
+        WHEN sex = 1 THEN 'Female'
+        WHEN sex = 2 THEN 'Male'
+        ELSE 'Other'
+    END AS gender,
+    COUNT(*) AS patient_count
+FROM 
+    dbo.project_covid_data
+GROUP BY 
+    CASE 
+        WHEN sex = 1 THEN 'Female'
+        WHEN sex = 2 THEN 'Male'
+        ELSE 'Other'
+    END;
+
+
+/* 2. Age Group Analysis:
+	• Count of Patients by Age Group: Categorize patients into age groups (e.g., under 18, 18-40, 41-65, over 65) and 
+	provide the count of patients in each group.
+	• Count of Patients by Age Group and COVID-19 Deaths: Analyze the count of patients in each age group who 
+	contracted COVID-19 and the number of deaths in each group.
+ Columns: age_category, total_patients, covid_patients, deceased_patients */
+
+
+SELECT 
+    CASE 
+        WHEN age < 18 THEN 'Under 18'
+        WHEN age BETWEEN 18 AND 40 THEN '18-40'
+        WHEN age BETWEEN 41 AND 65 THEN '41-65'
+        WHEN age > 65 THEN 'Over 65'
+    END AS age_category,
+    COUNT(*) AS total_patients,
+    SUM(CASE WHEN CLASIFFICATION_FINAL IN (1, 2, 3) THEN 1 ELSE 0 END) AS covid_patients,
+    SUM(CASE WHEN CLASIFFICATION_FINAL IN (1, 2, 3) and DATE_DIED <> '9999-99-99' THEN 1 ELSE 0 END) AS deceased_patients
+FROM 
+    dbo.Project_Covid_Data
+GROUP BY 
+    CASE 
+        WHEN age < 18 THEN 'Under 18'
+        WHEN age BETWEEN 18 AND 40 THEN '18-40'
+        WHEN age BETWEEN 41 AND 65 THEN '41-65'
+        WHEN age > 65 THEN 'Over 65'
+    END;
+
+
+
+/* 3. Pregnant Patients:
+	• Count of Pregnant Patients: Determine the total number of pregnant patients.
+	• Count of Pregnant Patients and COVID-19 Deaths: Focus on the count of pregnant patients who contracted COVID-19 and 
+	provide the number of deaths among them.
+Columns: Age_category, pregnant_patients, covid_pregnant_patients, pregnant_deaths	*/
+
+WITH Agecategory AS (
+SELECT AGE, DATE_DIED, CLASIFFICATION_FINAL, pregnant,
+CASE 
+        WHEN age < 18 THEN 'Under 18'
+        WHEN age BETWEEN 18 AND 40 THEN '18-40'
+        WHEN age BETWEEN 41 AND 65 THEN '41-65'
+        WHEN age > 65 THEN 'Over 65'
+    END AS Age_category
+	from project_covid_data
+)
+
+SELECT Age_category,
+SUM(CASE WHEN pregnant = '1' THEN 1 ELSE 0 END) AS pregnant_patients,
+	SUM(CASE WHEN pregnant = '1' AND CLASIFFICATION_FINAL in (1,2,3)  then 1 else 0 end) as covid_pregnant_patients,
+    SUM(CASE WHEN pregnant = '1' and CLASIFFICATION_FINAL in (1,2,3) AND DATE_DIED <> '9999-99-99' THEN 1 ELSE 0 END) AS pregnant_deaths
+FROM Agecategory
+WHERE pregnant=1
+GROUP BY Age_category
+
+
+/*
+4. Patients with Specific Conditions:
+	• Count of Patients with Specific Conditions: Investigate the count of patients with specific conditions 
+	(e.g., diabetes, COPD, asthma, hypertension) and analyze their outcomes, such as deaths related to COVID-19.
+
+
+---- CONDITIONS: [According to CDC] -----
+•	pneumonia: whether the patient already have air sacs inflammation or not.
+•	pregnancy: whether the patient is pregnant or not.
+•	diabetes: whether the patient has diabetes or not.
+•	copd: Indicates whether the patient has Chronic obstructive pulmonary disease or not.
+•	asthma: whether the patient has asthma or not.
+•	inmsupr: whether the patient is immunosuppressed or not.
+•	hypertension: whether the patient has hypertension or not.
+•	cardiovascular: whether the patient has heart or blood vessels related disease.
+•	renal chronic: whether the patient has chronic renal disease or not.
+•	other disease: whether the patient has other disease or not.
+•	obesity: whether the patient is obese or not.
+•	tobacco: whether the patient is a tobacco user.
+
+
+WITH Agecategory AS (
+SELECT DATE_DIED, SEX, CLASIFFICATION_FINAL, PNEUMONIA, PREGNANT, DIABETES, COPD, ASTHMA, INMSUPR, HYPERTENSION, CARDIOVASCULAR, RENAL_CHRONIC, OTHER_DISEASE, OBESITY, TOBACCO,
+CASE 
+	WHEN AGE < 18 THEN '18 under'
+	WHEN AGE < 41 THEN '18-40'
+	WHEN AGE < 66 THEN '41-65'
+	ELSE '65 over'
+END AS Age_category
+FROM dbo.Project_Covid_Data
+)
+
+SELECT Age_category, CASE WHEN SEX = '1' THEN 'Female' ELSE 'Male' END AS Gender,
+	COUNT(*) AS Patient_count,
+	SUM(CASE WHEN PNEUMONIA = 1 THEN 1 ELSE 0 END) AS Pneumonia_Patients,
+	SUM(CASE WHEN PNEUMONIA = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Pneumonia_deaths,
+	SUM(CASE WHEN PREGNANT = 1 THEN 1 ELSE 0 END) AS Pregnant_Patients,
+	SUM(CASE WHEN PREGNANT = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Pregnant_deaths,
+	SUM(CASE WHEN DIABETES = 1 THEN 1 ELSE 0 END) AS Diabetes_Patients,
+	SUM(CASE WHEN DIABETES = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Diabetes_deaths,
+	SUM(CASE WHEN COPD = 1 THEN 1 ELSE 0 END) AS COPD_Patients,
+	SUM(CASE WHEN COPD = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS COPD_deaths,
+	SUM(CASE WHEN ASTHMA = 1 THEN 1 ELSE 0 END) AS Asthma_Patients,
+	SUM(CASE WHEN ASTHMA = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Asthma_deaths,
+	SUM(CASE WHEN INMSUPR = 1 THEN 1 ELSE 0 END) AS Inmsupr_Patients,
+	SUM(CASE WHEN INMSUPR = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Inmsupr_deaths,
+	SUM(CASE WHEN HYPERTENSION = 1 THEN 1 ELSE 0 END) AS Hypertension_Patients,
+	SUM(CASE WHEN HYPERTENSION = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Hypertension_deaths,
+	SUM(CASE WHEN CARDIOVASCULAR = 1 THEN 1 ELSE 0 END) AS Cardiovascular_Patients,
+	SUM(CASE WHEN CARDIOVASCULAR = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Cardiovascular_deaths,
+	SUM(CASE WHEN RENAL_CHRONIC = 1 THEN 1 ELSE 0 END) AS Renal_chronic_Patients,
+	SUM(CASE WHEN RENAL_CHRONIC = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Renal_chronic_deaths,
+	SUM(CASE WHEN OTHER_DISEASE = 1 THEN 1 ELSE 0 END) AS Other_Disease_Patients,
+	SUM(CASE WHEN OTHER_DISEASE = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Other_Disease_deaths,
+	SUM(CASE WHEN OBESITY = 1 THEN 1 ELSE 0 END) AS Obesity_Patients,
+	SUM(CASE WHEN OBESITY = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Obesity_deaths,
+	SUM(CASE WHEN TOBACCO = 1 THEN 1 ELSE 0 END) AS Tobacco_Patients,
+	SUM(CASE WHEN TOBACCO = 1 AND DATE_DIED != '9999-99-99' THEN 1 ELSE 0 END) AS Tobacco_deaths
+FROM Agecategory
+WHERE CLASIFFICATION_FINAL IN (1,2,3)
+GROUP BY Age_category, SEX
+ORDER BY Age_category;
+
+
+
