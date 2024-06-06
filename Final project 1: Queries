@@ -1,0 +1,85 @@
+select * from sales.customers
+select * from sales.orders
+select * from sales.order_items
+
+1. Top 20 Buyers Information: Generate a list of the top 20 buyers in terms of total purchase value. 
+Include details such as the buyer's name, contact information, and the total amount they've spent.
+
+SELECT TOP 20
+    first_name,
+    last_name,
+	phone,
+    email,
+    SUM(items.quantity * (items.list_price - (items.list_price * items.discount))) AS total_purchase_value
+FROM
+    sales.customers cust
+JOIN
+    sales.orders o ON cust.customer_id = o.customer_id
+JOIN
+    sales.order_items items ON o.order_id = items.order_id
+GROUP BY
+    first_name, last_name, phone, email
+ORDER BY
+    total_purchase_value DESC;
+
+2. Location Sales Visualization: Create a geographical visualization of buyer locations. 
+Use color coding to differentiate between locations with the highest sales performance (top locations) and 
+those with poor sales performance (bad sales locations). 
+You can use a map or another suitable chart for this purpose.
+
+select cus.city, cus.zip_code, SUM(item.quantity*(item.list_price*(1-item.discount))) as sales 
+from sales.customers as cus
+join sales.orders as ord on cus.customer_id = ord.customer_id
+join sales.order_items as item on ord.order_id = item.order_id
+group by cus.city, cus.zip_code
+order by sales desc;
+
+3. Yearly Sales Analysis: Analyze the sales data to determine which year had the highest overall sales. 
+Include information on the total sales for each year in your report.
+
+SELECT year (ord.order_date) as Year ,
+sum(([list_price] - (list_price * [discount])) * quantity) as total_sales
+FROM [sales].[order_items] as it
+left join [sales].[orders] as ord on it.order_id = ord.order_id
+group by year (ord.order_date)
+order by 2 desc;
+
+4. Product Sales Analysis: Identify which product was the top-selling product across all years. 
+Include details on the product name and its total sales.
+
+select sum(ord_it.quantity*ord_it.list_price*(1-discount)) as total_sales,
+prod.product_name
+from production.products as prod
+join sales.order_items as ord_it on prod.product_id=ord_it.product_id
+group by prod.product_name
+order by 1 desc;
+
+5. Best Month for Product Sales: Determine which month was the best-performing for each product. 
+Provide a breakdown of the top-selling month for each product, along with the sales figures.
+
+WITH top_selling_month AS (
+    SELECT
+        pr.product_name,
+        MONTH(ord.order_date) AS sales_month,
+        YEAR(ord.order_date) AS sales_year,
+        SUM(it.list_price * it.quantity * (1 - it.discount)) AS total_sales,
+        DENSE_RANK() OVER (PARTITION BY pr.product_name ORDER BY SUM(it.list_price * it.quantity * (1 - it.discount)) DESC) AS rank
+    FROM
+        production.products AS pr
+    JOIN
+        sales.order_items AS it ON pr.product_id = it.product_id
+    JOIN
+        sales.orders AS ord ON ord.order_id = it.order_id
+    GROUP BY
+        pr.product_name, MONTH(ord.order_date), YEAR(ord.order_date)
+)
+SELECT TOP 10
+    product_name,
+    DATENAME(MONTH, DATEADD(MONTH, sales_month - 1, 0)) + ' ' + CAST(sales_year AS VARCHAR(4)) AS sales_month_year,
+    total_sales
+FROM
+    top_selling_month
+WHERE
+    rank = 1
+ORDER BY
+    total_sales DESC;
